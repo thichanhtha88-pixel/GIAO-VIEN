@@ -1,0 +1,6 @@
+{
+  "name": "Website Tin học Tiểu học – Trường Tiểu học Thứ Ba",
+  "description": "Hệ thống quản lý dạy học, theo dõi học sinh và đánh giá kết quả môn Tin học Tiểu học – Trường Tiểu học Thứ Ba",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
