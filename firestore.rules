@@ -1,0 +1,604 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Hardened Global Primitives ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedAuth() {
+      return isSignedIn() && (
+        request.auth.token.email_verified == true ||
+        (
+          request.auth.token.firebase.sign_in_provider == 'password' &&
+          request.auth.token.email is string &&
+          request.auth.token.email.size() >= 18 &&
+          request.auth.token.email.size() <= 100 &&
+          request.auth.token.email.matches('^[a-z0-9._\\-]+@gv\\.tinhocthuba\\.local$')
+        )
+      );
+    }
+
+    function isValidUserId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidEntityId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 64 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isOwner(userId) {
+      return isVerifiedAuth() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isParentUserActive(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId)) &&
+        get(/databases/$(database)/documents/users/$(userId)).data.uid == request.auth.uid;
+    }
+
+    // --- Validation Blueprints (Anti-Update-Gap) ---
+    function isValidTeacherUser(data) {
+      return data.keys().hasAll([
+          'uid',
+          'username',
+          'name',
+          'schoolName',
+          'schoolAddress',
+          'slogan',
+          'currentYear',
+          'currentSemester',
+          'isSampleData',
+          'authProvider',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'uid',
+          'username',
+          'name',
+          'schoolName',
+          'schoolAddress',
+          'slogan',
+          'currentYear',
+          'currentSemester',
+          'isSampleData',
+          'authProvider',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidUserId(data.uid) &&
+        data.uid == request.auth.uid &&
+        data.username is string &&
+        data.username.size() >= 3 &&
+        data.username.size() <= 32 &&
+        data.username.matches('^[a-z0-9._\\-]+$') &&
+        data.name is string &&
+        data.name.size() >= 1 &&
+        data.name.size() <= 100 &&
+        data.schoolName is string &&
+        data.schoolName.size() >= 1 &&
+        data.schoolName.size() <= 150 &&
+        data.schoolAddress is string &&
+        data.schoolAddress.size() <= 250 &&
+        data.slogan is string &&
+        data.slogan.size() <= 200 &&
+        data.currentYear is string &&
+        data.currentYear.size() >= 4 &&
+        data.currentYear.size() <= 30 &&
+        data.currentSemester is string &&
+        data.currentSemester.size() >= 1 &&
+        data.currentSemester.size() <= 30 &&
+        data.isSampleData is bool &&
+        data.authProvider is string &&
+        data.authProvider.size() <= 20 &&
+        data.authProvider in ['password', 'google'] &&
+        (
+          data.authProvider == 'google' ||
+          (data.username + '@gv.tinhocthuba.local') == request.auth.token.email
+        ) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidClassRoom(data) {
+      return data.keys().hasAll([
+          'id',
+          'ownerId',
+          'code',
+          'name',
+          'grade',
+          'academicYear',
+          'note',
+          'createdDate',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'ownerId',
+          'code',
+          'name',
+          'grade',
+          'academicYear',
+          'note',
+          'createdDate',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidEntityId(data.id) &&
+        isValidUserId(data.ownerId) &&
+        data.ownerId == request.auth.uid &&
+        data.code is string &&
+        data.code.size() >= 1 &&
+        data.code.size() <= 20 &&
+        data.name is string &&
+        data.name.size() >= 1 &&
+        data.name.size() <= 100 &&
+        data.grade is int &&
+        data.grade in [3, 4, 5] &&
+        data.academicYear is string &&
+        data.academicYear.size() >= 4 &&
+        data.academicYear.size() <= 30 &&
+        data.note is string &&
+        data.note.size() <= 500 &&
+        data.createdDate is string &&
+        data.createdDate.size() >= 1 &&
+        data.createdDate.size() <= 20 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidStudent(data) {
+      return data.keys().hasAll([
+          'id',
+          'ownerId',
+          'studentCode',
+          'fullName',
+          'classId',
+          'academicYear',
+          'gender',
+          'note',
+          'createdDate',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'ownerId',
+          'studentCode',
+          'fullName',
+          'classId',
+          'academicYear',
+          'gender',
+          'note',
+          'createdDate',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidEntityId(data.id) &&
+        isValidUserId(data.ownerId) &&
+        data.ownerId == request.auth.uid &&
+        data.studentCode is string &&
+        data.studentCode.size() >= 1 &&
+        data.studentCode.size() <= 32 &&
+        data.fullName is string &&
+        data.fullName.size() >= 1 &&
+        data.fullName.size() <= 100 &&
+        isValidEntityId(data.classId) &&
+        data.academicYear is string &&
+        data.academicYear.size() >= 4 &&
+        data.academicYear.size() <= 30 &&
+        data.gender is string &&
+        data.gender.size() <= 10 &&
+        data.gender in ['Nam', 'Nữ', ''] &&
+        data.note is string &&
+        data.note.size() <= 500 &&
+        data.createdDate is string &&
+        data.createdDate.size() >= 1 &&
+        data.createdDate.size() <= 20 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidLesson(data) {
+      return data.keys().hasAll([
+          'id',
+          'ownerId',
+          'code',
+          'title',
+          'grade',
+          'topic',
+          'taughtDate',
+          'progressStage',
+          'note',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'ownerId',
+          'code',
+          'title',
+          'grade',
+          'topic',
+          'taughtDate',
+          'progressStage',
+          'note',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidEntityId(data.id) &&
+        isValidUserId(data.ownerId) &&
+        data.ownerId == request.auth.uid &&
+        data.code is string &&
+        data.code.size() >= 1 &&
+        data.code.size() <= 30 &&
+        data.title is string &&
+        data.title.size() >= 1 &&
+        data.title.size() <= 200 &&
+        data.grade is int &&
+        data.grade in [3, 4, 5] &&
+        data.topic is string &&
+        data.topic.size() >= 1 &&
+        data.topic.size() <= 200 &&
+        data.taughtDate is string &&
+        data.taughtDate.size() <= 20 &&
+        data.progressStage is string &&
+        data.progressStage.size() <= 20 &&
+        data.progressStage in ['completed', 'in_progress', 'planned'] &&
+        data.note is string &&
+        data.note.size() <= 500 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidHistoryArray(arr) {
+      return arr is list &&
+        arr.size() <= 10 &&
+        (arr.size() == 0 || (arr[0] is string && arr[0].size() <= 500));
+    }
+
+    function isValidEvaluation(data) {
+      return data.keys().hasAll([
+          'id',
+          'ownerId',
+          'studentId',
+          'studentCode',
+          'studentName',
+          'classId',
+          'lessonId',
+          'lessonTitle',
+          'evaluationDate',
+          'activityType',
+          'level',
+          'comment',
+          'updatedDateIso',
+          'historyEntries',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'ownerId',
+          'studentId',
+          'studentCode',
+          'studentName',
+          'classId',
+          'lessonId',
+          'lessonTitle',
+          'evaluationDate',
+          'activityType',
+          'level',
+          'comment',
+          'updatedDateIso',
+          'historyEntries',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidEntityId(data.id) &&
+        isValidUserId(data.ownerId) &&
+        data.ownerId == request.auth.uid &&
+        isValidEntityId(data.studentId) &&
+        data.studentCode is string &&
+        data.studentCode.size() >= 1 &&
+        data.studentCode.size() <= 32 &&
+        data.studentName is string &&
+        data.studentName.size() >= 1 &&
+        data.studentName.size() <= 100 &&
+        isValidEntityId(data.classId) &&
+        isValidEntityId(data.lessonId) &&
+        data.lessonTitle is string &&
+        data.lessonTitle.size() >= 1 &&
+        data.lessonTitle.size() <= 200 &&
+        data.evaluationDate is string &&
+        data.evaluationDate.size() >= 1 &&
+        data.evaluationDate.size() <= 20 &&
+        data.activityType is string &&
+        data.activityType.size() <= 60 &&
+        data.activityType in [
+          'Bài thực hành',
+          'Câu hỏi kiểm tra',
+          'Nhiệm vụ nhóm',
+          'Sản phẩm học tập',
+          'Quan sát trong giờ học'
+        ] &&
+        data.level is string &&
+        data.level.size() <= 40 &&
+        data.level in [
+          'Hoàn thành tốt',
+          'Hoàn thành',
+          'Chưa hoàn thành',
+          'Chưa đánh giá'
+        ] &&
+        data.comment is string &&
+        data.comment.size() <= 1000 &&
+        data.updatedDateIso is string &&
+        data.updatedDateIso.size() >= 1 &&
+        data.updatedDateIso.size() <= 40 &&
+        isValidHistoryArray(data.historyEntries) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidUserId(userId);
+
+      allow create: if isOwner(userId) &&
+        isValidUserId(userId) &&
+        isValidTeacherUser(incoming()) &&
+        incoming().uid == userId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isOwner(userId) &&
+        isValidUserId(userId) &&
+        isValidTeacherUser(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().username == existing().username &&
+        incoming().authProvider == existing().authProvider &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          // Action: Update Profile Settings
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name',
+            'schoolName',
+            'schoolAddress',
+            'slogan',
+            'currentYear',
+            'currentSemester',
+            'isSampleData',
+            'updatedAt'
+          ])
+        );
+
+      allow delete: if false;
+
+      match /classes/{classId} {
+        allow get: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(classId) &&
+          existing().ownerId == request.auth.uid &&
+          isParentUserActive(userId);
+
+        allow list: if isOwner(userId) &&
+          resource.data.ownerId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(classId) &&
+          isValidClassRoom(incoming()) &&
+          incoming().id == classId &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          isParentUserActive(userId);
+
+        allow update: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(classId) &&
+          isValidClassRoom(incoming()) &&
+          incoming().id == existing().id &&
+          incoming().ownerId == existing().ownerId &&
+          incoming().createdDate == existing().createdDate &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            // Action: Edit Class Details
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'code',
+              'name',
+              'grade',
+              'academicYear',
+              'note',
+              'updatedAt'
+            ])
+          ) &&
+          isParentUserActive(userId);
+
+        allow delete: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(classId) &&
+          existing().ownerId == request.auth.uid &&
+          isParentUserActive(userId);
+      }
+
+      match /students/{studentId} {
+        allow get: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(studentId) &&
+          existing().ownerId == request.auth.uid &&
+          isParentUserActive(userId);
+
+        allow list: if isOwner(userId) &&
+          resource.data.ownerId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(studentId) &&
+          isValidStudent(incoming()) &&
+          incoming().id == studentId &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          isParentUserActive(userId) &&
+          exists(/databases/$(database)/documents/users/$(userId)/classes/$(incoming().classId));
+
+        allow update: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(studentId) &&
+          isValidStudent(incoming()) &&
+          incoming().id == existing().id &&
+          incoming().ownerId == existing().ownerId &&
+          incoming().createdDate == existing().createdDate &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            // Action 1: Transfer Class Only
+            incoming().diff(existing()).affectedKeys().hasOnly(['classId', 'updatedAt']) ||
+            // Action 2: Edit Student Profile
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'studentCode',
+              'fullName',
+              'classId',
+              'academicYear',
+              'gender',
+              'note',
+              'updatedAt'
+            ])
+          ) &&
+          isParentUserActive(userId) &&
+          exists(/databases/$(database)/documents/users/$(userId)/classes/$(incoming().classId));
+
+        allow delete: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(studentId) &&
+          existing().ownerId == request.auth.uid &&
+          isParentUserActive(userId);
+      }
+
+      match /lessons/{lessonId} {
+        allow get: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(lessonId) &&
+          existing().ownerId == request.auth.uid &&
+          isParentUserActive(userId);
+
+        allow list: if isOwner(userId) &&
+          resource.data.ownerId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(lessonId) &&
+          isValidLesson(incoming()) &&
+          incoming().id == lessonId &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          isParentUserActive(userId);
+
+        allow update: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(lessonId) &&
+          isValidLesson(incoming()) &&
+          incoming().id == existing().id &&
+          incoming().ownerId == existing().ownerId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            // Action: Update Lesson Curriculum & Teaching Progress
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'code',
+              'title',
+              'grade',
+              'topic',
+              'taughtDate',
+              'progressStage',
+              'note',
+              'updatedAt'
+            ])
+          ) &&
+          isParentUserActive(userId);
+
+        allow delete: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(lessonId) &&
+          existing().ownerId == request.auth.uid &&
+          isParentUserActive(userId);
+      }
+
+      match /evaluations/{evaluationId} {
+        allow get: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(evaluationId) &&
+          existing().ownerId == request.auth.uid &&
+          isParentUserActive(userId);
+
+        allow list: if isOwner(userId) &&
+          resource.data.ownerId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(evaluationId) &&
+          isValidEvaluation(incoming()) &&
+          incoming().id == evaluationId &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          isParentUserActive(userId) &&
+          exists(/databases/$(database)/documents/users/$(userId)/classes/$(incoming().classId)) &&
+          exists(/databases/$(database)/documents/users/$(userId)/students/$(incoming().studentId)) &&
+          exists(/databases/$(database)/documents/users/$(userId)/lessons/$(incoming().lessonId));
+
+        allow update: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(evaluationId) &&
+          isValidEvaluation(incoming()) &&
+          incoming().id == existing().id &&
+          incoming().ownerId == existing().ownerId &&
+          incoming().studentId == existing().studentId &&
+          incoming().lessonId == existing().lessonId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            // Action: Update Assessment Level, Comment, or Synced Student Info
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'studentCode',
+              'studentName',
+              'classId',
+              'lessonTitle',
+              'evaluationDate',
+              'activityType',
+              'level',
+              'comment',
+              'updatedDateIso',
+              'historyEntries',
+              'updatedAt'
+            ])
+          ) &&
+          isParentUserActive(userId) &&
+          exists(/databases/$(database)/documents/users/$(userId)/classes/$(incoming().classId)) &&
+          exists(/databases/$(database)/documents/users/$(userId)/students/$(incoming().studentId)) &&
+          exists(/databases/$(database)/documents/users/$(userId)/lessons/$(incoming().lessonId));
+
+        allow delete: if isOwner(userId) &&
+          isValidUserId(userId) &&
+          isValidEntityId(evaluationId) &&
+          existing().ownerId == request.auth.uid &&
+          isParentUserActive(userId);
+      }
+    }
+  }
+}

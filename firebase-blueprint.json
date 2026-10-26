@@ -1,0 +1,495 @@
+{
+  "entities": {
+    "TeacherUser": {
+      "title": "TeacherUser",
+      "description": "Teacher account profile and workspace configuration.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the teacher.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "description": "Normalized login username of the teacher.",
+          "minLength": 3,
+          "maxLength": 32,
+          "pattern": "^[a-z0-9._\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display full name of the teacher.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "schoolName": {
+          "type": "string",
+          "description": "Primary school name.",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "schoolAddress": {
+          "type": "string",
+          "description": "School address.",
+          "minLength": 0,
+          "maxLength": 250
+        },
+        "slogan": {
+          "type": "string",
+          "description": "Educational motto or slogan.",
+          "minLength": 0,
+          "maxLength": 200
+        },
+        "currentYear": {
+          "type": "string",
+          "description": "Active academic year.",
+          "minLength": 4,
+          "maxLength": 30
+        },
+        "currentSemester": {
+          "type": "string",
+          "description": "Active semester.",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "isSampleData": {
+          "type": "boolean",
+          "description": "Whether sample data is currently active."
+        },
+        "authProvider": {
+          "type": "string",
+          "description": "Authentication provider used for registration.",
+          "enum": ["password", "google"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "uid",
+        "username",
+        "name",
+        "schoolName",
+        "schoolAddress",
+        "slogan",
+        "currentYear",
+        "currentSemester",
+        "isSampleData",
+        "authProvider",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ClassRoom": {
+      "title": "ClassRoom",
+      "description": "A primary school class managed by the teacher.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique class document ID.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID of owning teacher.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "code": {
+          "type": "string",
+          "description": "Short class code such as 3A.",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "name": {
+          "type": "string",
+          "description": "Display class name.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "grade": {
+          "type": "number",
+          "description": "Grade level (3, 4, or 5).",
+          "enum": [3, 4, 5]
+        },
+        "academicYear": {
+          "type": "string",
+          "description": "Academic year label.",
+          "minLength": 4,
+          "maxLength": 30
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional note about the class.",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "createdDate": {
+          "type": "string",
+          "description": "ISO date string for display.",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "code",
+        "name",
+        "grade",
+        "academicYear",
+        "note",
+        "createdDate",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "A student belonging to one of the teacher's classes.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique student document ID.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID of owning teacher.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentCode": {
+          "type": "string",
+          "description": "Student code such as HS001.",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Full name of the student.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "classId": {
+          "type": "string",
+          "description": "Referenced class document ID.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "academicYear": {
+          "type": "string",
+          "description": "Academic year of enrollment.",
+          "minLength": 4,
+          "maxLength": 30
+        },
+        "gender": {
+          "type": "string",
+          "description": "Gender label.",
+          "enum": ["Nam", "Nữ", ""]
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional note about the student.",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "createdDate": {
+          "type": "string",
+          "description": "ISO date string for display.",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "studentCode",
+        "fullName",
+        "classId",
+        "academicYear",
+        "gender",
+        "note",
+        "createdDate",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Lesson": {
+      "title": "Lesson",
+      "description": "An Informatics curriculum lesson tracked by the teacher.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique lesson document ID.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID of owning teacher.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "code": {
+          "type": "string",
+          "description": "Lesson number label such as Bài 1.",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "title": {
+          "type": "string",
+          "description": "Lesson title.",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "grade": {
+          "type": "number",
+          "description": "Grade level (3, 4, or 5).",
+          "enum": [3, 4, 5]
+        },
+        "topic": {
+          "type": "string",
+          "description": "Curriculum topic.",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "taughtDate": {
+          "type": "string",
+          "description": "Teaching date string.",
+          "minLength": 0,
+          "maxLength": 20
+        },
+        "progressStage": {
+          "type": "string",
+          "description": "Current teaching progress stage.",
+          "enum": ["completed", "in_progress", "planned"]
+        },
+        "note": {
+          "type": "string",
+          "description": "Teaching notes.",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "code",
+        "title",
+        "grade",
+        "topic",
+        "taughtDate",
+        "progressStage",
+        "note",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Evaluation": {
+      "title": "Evaluation",
+      "description": "A student assessment record for a specific lesson.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique evaluation document ID.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID of owning teacher.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Referenced student document ID.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentCode": {
+          "type": "string",
+          "description": "Student code snapshot.",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "studentName": {
+          "type": "string",
+          "description": "Student full name snapshot.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "classId": {
+          "type": "string",
+          "description": "Referenced class document ID.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "lessonId": {
+          "type": "string",
+          "description": "Referenced lesson document ID.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "lessonTitle": {
+          "type": "string",
+          "description": "Lesson title snapshot.",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "evaluationDate": {
+          "type": "string",
+          "description": "Evaluation date string.",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "activityType": {
+          "type": "string",
+          "description": "Type of classroom assessment activity.",
+          "enum": [
+            "Bài thực hành",
+            "Câu hỏi kiểm tra",
+            "Nhiệm vụ nhóm",
+            "Sản phẩm học tập",
+            "Quan sát trong giờ học"
+          ]
+        },
+        "level": {
+          "type": "string",
+          "description": "Primary education evaluation level.",
+          "enum": [
+            "Hoàn thành tốt",
+            "Hoàn thành",
+            "Chưa hoàn thành",
+            "Chưa đánh giá"
+          ]
+        },
+        "comment": {
+          "type": "string",
+          "description": "Teacher feedback comment.",
+          "minLength": 0,
+          "maxLength": 1000
+        },
+        "updatedDateIso": {
+          "type": "string",
+          "description": "ISO timestamp string for UI display.",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "historyEntries": {
+          "type": "array",
+          "description": "Bounded list (max 10) of serialized revision history entries."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "studentId",
+        "studentCode",
+        "studentName",
+        "classId",
+        "lessonId",
+        "lessonTitle",
+        "evaluationDate",
+        "activityType",
+        "level",
+        "comment",
+        "updatedDateIso",
+        "historyEntries",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "TeacherUser",
+      "description": "Teacher account profile and workspace metadata, strictly owned by userId."
+    },
+    "/users/{userId}/classes/{classId}": {
+      "schema": "ClassRoom",
+      "description": "Classes belonging to a specific teacher."
+    },
+    "/users/{userId}/students/{studentId}": {
+      "schema": "Student",
+      "description": "Students enrolled in classes belonging to a specific teacher."
+    },
+    "/users/{userId}/lessons/{lessonId}": {
+      "schema": "Lesson",
+      "description": "Curriculum lessons managed by a specific teacher."
+    },
+    "/users/{userId}/evaluations/{evaluationId}": {
+      "schema": "Evaluation",
+      "description": "Lesson assessments recorded by a specific teacher."
+    }
+  }
+}

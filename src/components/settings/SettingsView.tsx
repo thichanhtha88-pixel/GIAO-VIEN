@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Settings,
-  User,
-  School,
-  Database,
-  ShieldCheck,
   CheckCircle2,
+  Eye,
+  EyeOff,
   KeyRound,
-  ExternalLink,
-  Flame,
+  Settings,
+  ShieldCheck,
+  User,
 } from 'lucide-react';
 import { TeacherProfile } from '../../types';
 import { TeacherAvatar } from '../common/Illustrations';
+import { changeTeacherPassword } from '../../services/authService';
+import { APP_CONSTRAINTS } from '../../supabase';
 
 interface SettingsViewProps {
   profile: TeacherProfile;
@@ -31,20 +31,66 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [currentYear, setCurrentYear] = useState(profile.currentYear);
   const [currentSemester, setCurrentSemester] = useState(profile.currentSemester);
 
+  // Password Change States
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  useEffect(() => {
+    setName(profile.name);
+    setSchoolName(profile.schoolName);
+    setSchoolAddress(profile.schoolAddress);
+    setSlogan(profile.slogan);
+    setCurrentYear(profile.currentYear);
+    setCurrentSemester(profile.currentSemester);
+  }, [profile]);
+
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateProfile({
       name: name.trim() || profile.name,
       schoolName: schoolName.trim() || profile.schoolName,
-      schoolAddress: schoolAddress.trim() || profile.schoolAddress,
-      slogan: slogan.trim() || profile.slogan,
+      schoolAddress: schoolAddress.trim(),
+      slogan: slogan.trim(),
       currentYear,
       currentSemester,
     });
     onShowToast({
       type: 'success',
-      message: 'Đã lưu cấu hình hồ sơ giáo viên thành công!',
+      message: 'Đã lưu cấu hình hồ sơ giáo viên lên đám mây thành công!',
     });
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPassword) {
+      onShowToast({ type: 'error', message: 'Vui lòng nhập mật khẩu hiện tại!' });
+      return;
+    }
+    if (newPassword.length < 6) {
+      onShowToast({ type: 'error', message: 'Mật khẩu mới phải có từ 6 ký tự trở lên!' });
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      onShowToast({ type: 'error', message: 'Mật khẩu mới nhập lại không khớp!' });
+      return;
+    }
+
+    setIsChangingPassword(true);
+    const res = await changeTeacherPassword({ currentPassword, newPassword });
+    setIsChangingPassword(false);
+
+    if (!res.success) {
+      onShowToast({ type: 'error', message: res.error || 'Không thể đổi mật khẩu.' });
+      return;
+    }
+
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    onShowToast({ type: 'success', message: 'Đã cập nhật mật khẩu mới thành công!' });
   };
 
   return (
@@ -54,10 +100,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div>
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <Settings className="w-6 h-6 text-[#0878D1]" />
-            <span>Cài đặt hệ thống & Hồ sơ giáo viên</span>
+            <span>Cài đặt tài khoản & Hồ sơ giáo viên</span>
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            Chỉnh sửa thông tin hiển thị, năm học và kiểm tra trạng thái bảo mật cơ sở dữ liệu.
+            Quản lý thông tin hiển thị, năm học và mật khẩu đăng nhập tài khoản.
           </p>
         </div>
       </div>
@@ -73,11 +119,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <form onSubmit={handleSaveProfile} className="space-y-4">
             <div className="flex items-center gap-4 p-4 rounded-xl bg-sky-50/60 border border-sky-200">
               <TeacherAvatar className="w-14 h-14" />
-              <div>
+              <div className="space-y-0.5">
                 <div className="text-sm font-bold text-slate-800">{profile.name}</div>
-                <div className="text-xs text-slate-500">Email: {profile.email}</div>
-                <div className="text-xs text-blue-700 font-semibold mt-0.5">
-                  Chức vụ: Giáo viên môn Tin học
+                <div className="text-xs text-slate-600">
+                  Tên đăng nhập: <span className="font-bold text-slate-800">@{profile.username || 'giaovien'}</span>
+                </div>
+                <div className="text-xs text-blue-700 font-semibold">
+                  Phương thức xác thực:{' '}
+                  {profile.authProvider === 'google' ? 'Tài khoản Google' : 'Tên đăng nhập & Mật khẩu'}
                 </div>
               </div>
             </div>
@@ -89,6 +138,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <input
                 type="text"
                 value={name}
+                maxLength={APP_CONSTRAINTS.NAME_MAX}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Thị Chành Th."
                 className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800"
@@ -96,7 +146,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Tên đơn vị trường học
@@ -104,7 +154,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <input
                   type="text"
                   value={schoolName}
+                  maxLength={APP_CONSTRAINTS.SCHOOL_NAME_MAX}
                   onChange={(e) => setSchoolName(e.target.value)}
+                  required
                   className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl font-bold"
                 />
               </div>
@@ -116,6 +168,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <input
                   type="text"
                   value={slogan}
+                  maxLength={APP_CONSTRAINTS.SLOGAN_MAX}
                   onChange={(e) => setSlogan(e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl italic"
                 />
@@ -129,6 +182,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <input
                 type="text"
                 value={schoolAddress}
+                maxLength={APP_CONSTRAINTS.SCHOOL_ADDRESS_MAX}
                 onChange={(e) => setSchoolAddress(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl"
               />
@@ -170,78 +224,112 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 type="submit"
                 className="px-6 py-2.5 bg-[#168BF0] hover:bg-blue-600 text-white font-bold text-sm rounded-xl shadow-xs transition-colors cursor-pointer"
               >
-                Lưu cấu hình
+                Lưu cấu hình hồ sơ
               </button>
             </div>
           </form>
         </div>
 
-        {/* Right (5 cols): Database Status & Security Information */}
+        {/* Right (5 cols): Password Management & Security */}
         <div className="lg:col-span-5 space-y-5">
-          {/* Database Status Card */}
-          <div className="bg-white rounded-2xl p-6 shadow-xs border border-sky-100">
-            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-              <Database className="w-5 h-5 text-emerald-600" />
-              <h3 className="font-bold text-slate-800 text-base">Trạng thái Cơ sở dữ liệu</h3>
+          {profile.authProvider === 'password' && (
+            <div className="bg-white rounded-2xl p-6 shadow-xs border border-sky-100">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="w-5 h-5 text-amber-600" />
+                  <h3 className="font-bold text-slate-800 text-base">Đổi mật khẩu đăng nhập</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPass((p) => !p)}
+                  className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1 cursor-pointer"
+                >
+                  {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  <span>{showPass ? 'Ẩn' : 'Hiện'}</span>
+                </button>
+              </div>
+
+              <form onSubmit={handlePasswordChange} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Mật khẩu hiện tại
+                  </label>
+                  <input
+                    type={showPass ? 'text' : 'password'}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Nhập mật khẩu đang dùng"
+                    required
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Mật khẩu mới
+                  </label>
+                  <input
+                    type={showPass ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Từ 6 ký tự trở lên"
+                    required
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Xác nhận mật khẩu mới
+                  </label>
+                  <input
+                    type={showPass ? 'text' : 'password'}
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    placeholder="Nhập lại mật khẩu mới"
+                    required
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isChangingPassword}
+                    className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white font-bold text-sm rounded-xl transition-colors cursor-pointer"
+                  >
+                    {isChangingPassword ? 'Đang cập nhật...' : 'Cập nhật mật khẩu mới'}
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <div className="mt-4 space-y-3 text-xs">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200">
-                <div className="flex items-center gap-2 text-emerald-900 font-bold">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Bộ nhớ trực tuyến trình duyệt</span>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
-                  Đang hoạt động
-                </span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 leading-relaxed">
-                <p>
-                  • Toàn bộ lớp học, học sinh và phiếu đánh giá được lưu trực tuyến tự động ngay khi cô thao tác.
-                </p>
-                <p className="mt-1">
-                  • Cô có thể tải lại trang (F5) mà không sợ mất bất kỳ thông tin nào.
-                </p>
-              </div>
-
-              {/* Firebase Ready status badge */}
-              <div className="p-3 rounded-xl bg-orange-50/70 border border-orange-200 text-xs">
-                <div className="flex items-center gap-2 text-orange-900 font-bold mb-1">
-                  <Flame className="w-4 h-4 text-orange-500" />
-                  <span>Sẵn sàng kết nối Firebase Firestore</span>
-                </div>
-                <div className="text-orange-800 leading-relaxed text-[11px]">
-                  Hệ thống được thiết kế theo cấu trúc NoSQL chuẩn Firestore với Collections:
-                  <div className="font-mono text-[10px] text-slate-700 bg-white/70 p-1.5 rounded mt-1 border border-orange-200">
-                    /classes/{'{classId}'}<br />
-                    /students/{'{studentId}'}<br />
-                    /evaluations/{'{evaluationId}'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* Security & Access Rights */}
           <div className="bg-white rounded-2xl p-6 shadow-xs border border-sky-100">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
               <ShieldCheck className="w-5 h-5 text-blue-600" />
-              <h3 className="font-bold text-slate-800 text-base">Bảo mật & Quyền truy cập</h3>
+              <h3 className="font-bold text-slate-800 text-base">Bảo mật & Quyền riêng tư</h3>
             </div>
 
-            <div className="mt-3 text-xs text-slate-700 space-y-2 leading-relaxed">
+            <div className="mt-3 text-xs text-slate-700 space-y-2.5 leading-relaxed">
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
-                <span>Chỉ giáo viên có tài khoản được cấp phép mới được quyền xem và cập nhật điểm.</span>
+                <span>
+                  Tài khoản giáo viên được xác thực trực tuyến và tự động đồng bộ giữa các thiết bị.
+                </span>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
-                <span>Không thu thập thông tin nhạy cảm của học sinh tiểu học (chỉ dùng Mã HS và Họ tên).</span>
+                <span>
+                  Mỗi tài khoản chỉ có quyền truy cập và chỉnh sửa lớp học, học sinh thuộc phạm vi quản lý của mình.
+                </span>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
-                <span>Bảo lưu đầy đủ lịch sử đánh giá khi học sinh chuyển lớp hoặc qua các năm học.</span>
+                <span>
+                  Bảo lưu đầy đủ lịch sử đánh giá khi học sinh chuyển lớp hoặc qua các năm học.
+                </span>
               </div>
             </div>
           </div>

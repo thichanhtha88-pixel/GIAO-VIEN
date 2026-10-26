@@ -66,6 +66,9 @@ export interface EvaluationRecord {
 }
 
 export interface TeacherProfile {
+  uid?: string;
+  username?: string;
+  authProvider?: 'password' | 'google';
   name: string;
   email: string;
   schoolName: string;

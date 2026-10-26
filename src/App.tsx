@@ -7,10 +7,13 @@ import {
   EvaluationRecord,
   TeacherProfile,
 } from './types';
+import { supabase } from './supabase';
 import { storage } from './services/storage';
+import { logoutTeacher } from './services/authService';
 import { Header } from './components/common/Header';
 import { Sidebar } from './components/common/Sidebar';
 import { Footer } from './components/common/Footer';
+import { PrimaryITLogo } from './components/common/Illustrations';
 import { ToastContainer, ToastMessage } from './components/common/ConfirmDialog';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
 import { OverviewView } from './components/dashboard/OverviewView';
@@ -29,6 +32,9 @@ import { SettingsView } from './components/settings/SettingsView';
 import { LoginView } from './components/auth/LoginView';
 
 export default function App() {
+  // Auth readiness state
+  const [isAuthReady, setIsAuthReady] = useState(false);
+
   // Main Data States
   const [profile, setProfile] = useState<TeacherProfile>(() => storage.getProfile());
   const [classes, setClasses] = useState<ClassRoom[]>(() => storage.getClasses());
@@ -75,6 +81,57 @@ export default function App() {
     });
     return unsubscribe;
   }, [refreshData]);
+
+  // Subscribe to Supabase Authentication state
+  useEffect(() => {
+    let isMounted = true;
+
+    supabase.auth
+      .getSession()
+      .then(async ({ data: { session } }) => {
+        try {
+          if (session?.user) {
+            await storage.bindAuthenticatedUser(session.user);
+          } else {
+            storage.unbindAuthenticatedUser();
+          }
+        } catch (err) {
+          console.error('Lỗi khởi tạo phiên đăng nhập Supabase:', err);
+        } finally {
+          if (isMounted) setIsAuthReady(true);
+        }
+      })
+      .catch((err) => {
+        console.error('Lỗi đọc phiên Supabase:', err);
+        if (isMounted) setIsAuthReady(true);
+      });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Run outside synchronous GoTrue callback lock
+      setTimeout(() => {
+        void (async () => {
+          try {
+            if (session?.user) {
+              await storage.bindAuthenticatedUser(session.user);
+            } else {
+              storage.unbindAuthenticatedUser();
+            }
+          } catch (err) {
+            console.error('Lỗi đồng bộ phiên đăng nhập Supabase:', err);
+          } finally {
+            if (isMounted) setIsAuthReady(true);
+          }
+        })();
+      }, 0);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Modal States
   const [isClassModalOpen, setIsClassModalOpen] = useState(false);
@@ -299,28 +356,34 @@ export default function App() {
     setConfirmDialog({
       isOpen: true,
       title: 'Đăng xuất khỏi hệ thống?',
-      message: 'Cô có muốn đăng xuất khỏi Website Tin học Tiểu học – Trường Tiểu học Thứ Ba không?',
+      message: `Bạn có muốn đăng xuất tài khoản ${profile.username ? `@${profile.username}` : profile.name} khỏi hệ thống không?`,
       type: 'warning',
-      onConfirm: () => {
-        storage.updateProfile({ isLoggedIn: false });
+      onConfirm: async () => {
         setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        await logoutTeacher();
+        setCurrentTab('overview');
       },
     });
   };
 
-  const handleLoginSuccess = (email: string, name: string) => {
-    storage.updateProfile({ isLoggedIn: true, email, name });
-    showToast({ type: 'success', message: `Chào mừng cô ${name} đăng nhập thành công!` });
-  };
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen bg-[#F4F8FC] flex flex-col items-center justify-center p-4 gap-3">
+        <PrimaryITLogo className="w-14 h-14 animate-pulse" />
+        <p className="text-sm font-bold text-[#073B78]">Đang kiểm tra phiên đăng nhập...</p>
+      </div>
+    );
+  }
 
-  // If teacher logged out, show Login screen
+  // If teacher logged out, show Login & Registration screen
   if (!profile.isLoggedIn) {
     return (
-      <LoginView
-        onLoginSuccess={handleLoginSuccess}
-        defaultEmail={profile.email}
-        defaultName={profile.name}
-      />
+      <>
+        <LoginView
+          onAuthComplete={(msg) => showToast({ type: 'success', message: msg })}
+        />
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
+      </>
     );
   }
 

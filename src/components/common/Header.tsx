@@ -38,7 +38,7 @@ export const Header: React.FC<HeaderProps> = ({ profile, onLogout, onOpenSetting
               <span>Giáo viên: {profile.name}</span>
             </div>
             <div className="text-xs text-sky-200">
-              {profile.schoolName}
+              {profile.username ? `@${profile.username} • ` : ''}{profile.schoolName}
             </div>
           </div>
         </div>
